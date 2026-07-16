@@ -1,3 +1,4 @@
+from dataclasses import asdict
 from uuid import uuid4
 
 import pytest
@@ -46,7 +47,7 @@ def repo():
 async def test_list_items_returns_all(repo):
     items = await repo.list_items()
     assert len(items) == 2
-    assert StoreItemOut(**vars(items[0])).price == 25
+    assert StoreItemOut(**asdict(items[0])).price == 25
 
 
 async def test_list_items_filters_by_kind(repo):
@@ -56,7 +57,7 @@ async def test_list_items_filters_by_kind(repo):
 
 async def test_get_player(repo):
     player = await repo.get_player(repo._player.id)
-    assert PlayerOut(**vars(player)).balance == 500
+    assert PlayerOut(**asdict(player)).balance == 500
 
 
 async def test_get_unknown_player(repo):
