@@ -63,24 +63,29 @@ class PurchaseService:
         balance_after = player.balance - item.price
         await self._repo.set_balance(player_id, balance_after)
 
-        if item.stock is not None:
-            await self._repo.decrement_stock(item.id)
+        try:
+            if item.stock is not None:
+                await self._repo.decrement_stock(item.id)
 
-        async with self._pool.acquire() as conn:
-            async with conn.transaction():
-                purchase_id = await self._repo.create_purchase(
-                    conn, player_id, item, req.idempotency_key
-                )
-                await self._repo.add_to_inventory(conn, player_id, item, purchase_id)
-                await self._analytics.track(
-                    "store_purchase",
-                    {
-                        "player_id": str(player_id),
-                        "sku": item.sku,
-                        "price": item.price,
-                        "balance_after": balance_after,
-                    },
-                )
+            async with self._pool.acquire() as conn:
+                async with conn.transaction():
+                    purchase_id = await self._repo.create_purchase(
+                        conn, player_id, item, req.idempotency_key
+                    )
+                    await self._repo.add_to_inventory(conn, player_id, item, purchase_id)
+                    await self._analytics.track(
+                        "store_purchase",
+                        {
+                            "player_id": str(player_id),
+                            "sku": item.sku,
+                            "price": item.price,
+                            "balance_after": balance_after,
+                        },
+                    )
+        except Exception:
+            logger.exception("purchase failed, restoring balance player=%s", player_id)
+            await self._repo.set_balance(player_id, player.balance)
+            raise
 
         return PurchaseResponse(
             purchase_id=purchase_id,
