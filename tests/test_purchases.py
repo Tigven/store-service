@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
@@ -29,6 +30,9 @@ class FakeRepo:
         return self.item if item_id == self.item.id else None
 
     async def get_player(self, player_id):
+        return self.player if player_id == self.player.id else None
+
+    async def get_player_for_update(self, player_id):
         return self.player if player_id == self.player.id else None
 
     async def set_balance(self, player_id, balance):
@@ -150,3 +154,15 @@ async def test_retry_with_same_key_does_not_charge_twice():
     assert first.purchase_id == second.purchase_id
     assert repo.player.balance == 900
     assert len(repo.inventory) == 1
+
+
+async def test_concurrent_purchases_are_serialized():
+    service, repo = make_service(balance=1000, stock=10)
+
+    await asyncio.gather(
+        *[service.purchase(PLAYER_ID, request(key=f"idem-key-{i:04d}")) for i in range(5)]
+    )
+
+    assert repo.player.balance == 500
+    assert repo.item.stock == 5
+    assert len(repo.inventory) == 5

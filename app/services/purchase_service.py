@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import logging
+from collections import defaultdict
 from uuid import UUID
 
 import asyncpg
@@ -28,8 +30,13 @@ class PurchaseService:
         self._pool = pool
         self._repo = repo
         self._analytics = analytics
+        self._locks: dict[UUID, asyncio.Lock] = defaultdict(asyncio.Lock)
 
     async def purchase(self, player_id: UUID, req: PurchaseRequest) -> PurchaseResponse:
+        async with self._locks[player_id]:
+            return await self._purchase(player_id, req)
+
+    async def _purchase(self, player_id: UUID, req: PurchaseRequest) -> PurchaseResponse:
         existing = await self._repo.find_purchase_by_key(req.idempotency_key)
         if existing is not None:
             player = await self._repo.get_player(player_id)
@@ -54,7 +61,7 @@ class PurchaseService:
         if item.stock is not None and item.stock <= 0:
             raise PurchaseError(409, "out_of_stock")
 
-        player = await self._repo.get_player(player_id)
+        player = await self._repo.get_player_for_update(player_id)
         if player is None:
             raise PurchaseError(404, "player_not_found")
         if player.balance < item.price:

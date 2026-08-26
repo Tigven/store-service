@@ -72,6 +72,15 @@ class StoreRepository:
             )
         return _player(row) if row else None
 
+    async def get_player_for_update(self, player_id: UUID) -> Player | None:
+        async with self._pool.acquire() as conn:
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    "SELECT id, nickname, balance FROM players WHERE id = $1 FOR UPDATE",
+                    player_id,
+                )
+        return _player(row) if row else None
+
     async def set_balance(self, player_id: UUID, balance: int) -> None:
         async with self._pool.acquire() as conn:
             await conn.execute(
