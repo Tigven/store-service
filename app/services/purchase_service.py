@@ -8,7 +8,7 @@ from uuid import UUID
 import asyncpg
 
 from app.repositories.store import StoreRepository
-from app.schemas import PurchaseRequest, PurchaseResponse
+from app.schemas import PurchaseRequest, PurchaseResponse, RefundResponse
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +99,31 @@ class PurchaseService:
             item_id=item.id,
             price_paid=item.price,
             balance_after=balance_after,
+        )
+
+    async def refund(self, player_id: UUID, purchase_id: UUID) -> RefundResponse:
+        purchase = await self._repo.get_purchase(purchase_id)
+        if purchase is None or purchase.player_id != player_id:
+            raise PurchaseError(404, "purchase_not_found")
+        if purchase.status != "completed":
+            raise PurchaseError(409, "not_refundable")
+
+        async with self._pool.acquire() as conn:
+            async with conn.transaction():
+                await self._repo.lock_item(conn, purchase.item_id)
+                await self._repo.increment_stock(conn, purchase.item_id)
+
+                await self._repo.lock_player(conn, player_id)
+                balance = await self._repo.credit(conn, player_id, purchase.price_paid)
+
+                await self._repo.remove_from_inventory(conn, purchase.id)
+                await self._repo.mark_refunded(conn, purchase.id)
+
+        logger.info("purchase refunded player=%s purchase=%s", player_id, purchase.id)
+        return RefundResponse(
+            purchase_id=purchase.id,
+            refunded=purchase.price_paid,
+            balance_after=balance,
         )
 
 

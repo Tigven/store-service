@@ -147,6 +147,52 @@ class StoreRepository:
             purchase_id,
         )
 
+    async def get_purchase(self, purchase_id: UUID) -> Purchase | None:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, player_id, item_id, price_paid, status
+                FROM purchases
+                WHERE id = $1
+                """,
+                purchase_id,
+            )
+        return _purchase(row) if row else None
+
+    async def lock_item(self, conn: asyncpg.Connection, item_id: UUID) -> None:
+        await conn.fetchrow("SELECT id FROM store_items WHERE id = $1 FOR UPDATE", item_id)
+
+    async def lock_player(self, conn: asyncpg.Connection, player_id: UUID) -> None:
+        await conn.fetchrow("SELECT id FROM players WHERE id = $1 FOR UPDATE", player_id)
+
+    async def increment_stock(self, conn: asyncpg.Connection, item_id: UUID) -> None:
+        await conn.execute(
+            "UPDATE store_items SET stock = stock + 1 WHERE id = $1 AND stock IS NOT NULL",
+            item_id,
+        )
+
+    async def credit(self, conn: asyncpg.Connection, player_id: UUID, amount: int) -> int:
+        row = await conn.fetchrow(
+            """
+            UPDATE players
+            SET balance = balance + $2, updated_at = now()
+            WHERE id = $1
+            RETURNING balance
+            """,
+            player_id,
+            amount,
+        )
+        return row["balance"]
+
+    async def remove_from_inventory(self, conn: asyncpg.Connection, purchase_id: UUID) -> None:
+        await conn.execute("DELETE FROM inventory WHERE purchase_id = $1", purchase_id)
+
+    async def mark_refunded(self, conn: asyncpg.Connection, purchase_id: UUID) -> None:
+        await conn.execute(
+            "UPDATE purchases SET status = 'refunded', updated_at = now() WHERE id = $1",
+            purchase_id,
+        )
+
 
 def _item(row: asyncpg.Record) -> StoreItem:
     keys = row.keys()

@@ -34,3 +34,9 @@ class PurchaseResponse(BaseModel):
     item_id: UUID
     price_paid: int
     balance_after: int
+
+
+class RefundResponse(BaseModel):
+    purchase_id: UUID
+    refunded: int
+    balance_after: int
