@@ -28,14 +28,14 @@ def repo():
             StoreItem(
                 id=uuid4(),
                 sku="potion_small",
-                title="Малое зелье",
+                title="Small potion",
                 price=25,
                 kind=ItemKind.CONSUMABLE,
             ),
             StoreItem(
                 id=uuid4(),
                 sku="skin_dragon_01",
-                title="Скин «Дракон»",
+                title="Dragon skin",
                 price=100,
                 kind=ItemKind.UNIQUE,
             ),
