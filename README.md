@@ -1,10 +1,10 @@
 # store-service
 
-Игровой магазин: витрина предметов и баланс игрока в софт-валюте.
+In-game store with an item catalog and player balances in soft currency.
 
-Стек: FastAPI + asyncpg, PostgreSQL 15, сырой SQL без ORM.
+Stack: FastAPI + asyncpg, PostgreSQL 15, raw SQL with no ORM.
 
-## Запуск
+## Running locally
 
 ```bash
 pip install -r requirements.txt
@@ -14,12 +14,13 @@ psql "$DATABASE_URL" -f migrations/002_store_items.sql
 uvicorn app.main:app --reload
 ```
 
-## Деплой
+## Deployment
 
-Кубер, 5 реплик, HPA до 12 под нагрузкой. Одна primary-база, реплик для чтения нет.
+Kubernetes with 5 replicas, with HPA scaling up to 12 under load. A single primary database with no read replicas.
 
-## Тесты
+## Tests
 
 ```bash
 pytest
 ```
+
