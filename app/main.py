@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 import asyncpg
 from fastapi import FastAPI
 
+from app import purchases
 from app.api import catalog
 from app.repositories.store import StoreRepository
 
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="store-service", lifespan=lifespan)
 app.include_router(catalog.router)
+app.include_router(purchases.router)
 
 
 @app.get("/health")
